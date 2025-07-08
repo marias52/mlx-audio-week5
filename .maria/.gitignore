@@ -1,0 +1,31 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# macOS
+.DS_Store
+
+# ML specific
+*.pt
+*.pkl
+data/
+wandb/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Dataset files
+urbansound8k_train/
+*.arrow
+urbansound8k*
+UrbanSound8K*
+
+# Model outputs
+models/
+checkpoints/
+logs/
