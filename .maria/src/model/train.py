@@ -1,76 +1,91 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from datasets import load_dataset
-import numpy as np
-from dataset import AudioDataset  # your custom dataset class
-from model import AudioCNN         # your model class
+from dataset import AudioDataset
+from model import AudioCNN
+import wandb
 
-# Load dataset split
-dataset = load_dataset("danavery/urbansound8K", split="train")
+# --------- CONFIGURATIONS ---------
+default_wandb_config = {
+    "BATCH_SIZE": 32,
+    "EPOCHS": 10,
+    "LEARNING_RATE": 0.001,
+    "DEVICE": "cpu",
+    "FIXED_WIDTH": 751,
+    "DATASET_NAME": "danavery/urbansound8K"
+}
 
-# Create label mapping
-all_labels = sorted(set(dataset["class"]))
-label_map = {label: idx for idx, label in enumerate(all_labels)}
+wandb.init(project="audio-classification", entity="your-entity", config=default_wandb_config)
+CONFIG = wandb.config
 
-# Define fixed width from your 95th percentile calculation
-FIXED_WIDTH = 751
+# --- CONFIG PARAMS ---
+BATCH_SIZE = CONFIG.BATCH_SIZE
+EPOCHS = CONFIG.EPOCHS
+LEARNING_RATE = CONFIG.LEARNING_RATE
+DEVICE = CONFIG.DEVICE
+FIXED_WIDTH = CONFIG.FIXED_WIDTH
+DATASET_NAME = CONFIG.DATASET_NAME
 
-# Modify your AudioDataset to accept fixed width for padding/truncation
-class PaddedAudioDataset(AudioDataset):
-    def __init__(self, hf_dataset, label_map, fixed_width=FIXED_WIDTH, hop_length=512, n_mels=128):
-        super().__init__(hf_dataset, label_map, hop_length, n_mels)
-        self.fixed_width = fixed_width
-
+# --------- DATASET PREPARATION ---------
+class PaddedDataset(AudioDataset):
     def __getitem__(self, idx):
         spectrogram, label = super().__getitem__(idx)
         width = spectrogram.shape[-1]
-        if width < self.fixed_width:
-            pad_amount = self.fixed_width - width
-            spectrogram = torch.nn.functional.pad(spectrogram, (0, pad_amount))
+        if width < FIXED_WIDTH:
+            spectrogram = torch.nn.functional.pad(spectrogram, (0, FIXED_WIDTH - width))
         else:
-            spectrogram = spectrogram[:, :, :self.fixed_width]
+            spectrogram = spectrogram[:, :, :FIXED_WIDTH]
         return spectrogram, label
 
-# Create dataset and dataloader
-train_dataset = PaddedAudioDataset(dataset, label_map)
-train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
+# --------- TRAINING AND EVALUATION ---------
+def train():
+    dataset = load_dataset(DATASET_NAME, split="train")
+    label_map = {label: idx for idx, label in enumerate(sorted(set(dataset["class"])))}
 
-# Instantiate model
-model = AudioCNN(num_classes=len(label_map), input_shape=(1, 128, 751))  # Set input shape to match your spectrograms
-device = torch.device("cpu")
-model.to(device)
+    train_len, val_len = int(0.8 * len(dataset)), int(0.1 * len(dataset))
+    test_len = len(dataset) - train_len - val_len
 
-# Loss and optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+    train_data, val_data, test_data = random_split(dataset, [train_len, val_len, test_len])
 
-# Training loop
-num_epochs = 5
+    train_loader = DataLoader(PaddedDataset(train_data, label_map), batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+    val_loader = DataLoader(PaddedDataset(val_data, label_map), batch_size=BATCH_SIZE, num_workers=4)
+    test_loader = DataLoader(PaddedDataset(test_data, label_map), batch_size=BATCH_SIZE, num_workers=4)
 
-for epoch in range(num_epochs):
-    model.train()
-    total_loss = 0
-    total_correct = 0
-    total_samples = 0
+    model = AudioCNN(num_classes=len(label_map)).to(DEVICE)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
-    for inputs, labels in train_loader:
-        inputs = inputs.to(device)
-        labels = labels.to(device)
+    for epoch in range(EPOCHS):
+        model.train()
+        total_loss, correct = 0, 0
 
-        optimizer.zero_grad()
-        outputs = model(inputs)
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+            total_loss += loss.item() * inputs.size(0)
+            correct += (outputs.argmax(1) == labels).sum().item()
 
-        total_loss += loss.item() * inputs.size(0)
-        preds = outputs.argmax(dim=1)
-        total_correct += (preds == labels).sum().item()
-        total_samples += labels.size(0)
+        train_loss = total_loss / len(train_loader.dataset)
+        train_acc = correct / len(train_loader.dataset)
 
-    avg_loss = total_loss / total_samples
-    accuracy = total_correct / total_samples
-    print(f"Epoch {epoch + 1}/{num_epochs} - Loss: {avg_loss:.4f} - Accuracy: {accuracy:.4f}")
+        model.eval()
+        val_correct = sum((model(i.to(DEVICE)).argmax(1) == l.to(DEVICE)).sum().item() for i, l in val_loader)
+        val_acc = val_correct / len(val_loader.dataset)
+
+        wandb.log({"epoch": epoch, "train_loss": train_loss, "train_acc": train_acc, "val_acc": val_acc})
+        print(f"Epoch {epoch+1}: Loss={train_loss:.4f}, Train Acc={train_acc:.4f}, Val Acc={val_acc:.4f}")
+
+    test_correct = sum((model(i.to(DEVICE)).argmax(1) == l.to(DEVICE)).sum().item() for i, l in test_loader)
+    test_acc = test_correct / len(test_loader.dataset)
+
+    wandb.log({"test_acc": test_acc})
+    print(f"Test Accuracy: {test_acc:.4f}")
+
+    wandb.finish()
