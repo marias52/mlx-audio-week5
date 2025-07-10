@@ -2,6 +2,7 @@
 from datasets import load_dataset
 import soundfile as sf
 import torch
+from torchvision import transforms
 import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
@@ -95,3 +96,4 @@ class AudioCNN(nn.Module):
 model = AudioCNN(num_classes=10)
 output = model(x)
 print(f"Output shape: {output.shape}")
+
