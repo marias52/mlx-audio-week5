@@ -1,0 +1,11 @@
+Sample,Accent,Reference,Prediction,WER
+1,"India and South Asia (India, Pakistan, Sri Lanka)",Men in orange vests are at work on a construction site., Men in Orange West are at work on the construction site.,0.27
+2,"India and South Asia (India, Pakistan, Sri Lanka)",This child is getting a pedicure., This child is getting up edicure.,0.33
+3,"India and South Asia (India, Pakistan, Sri Lanka)",Did you get the Mayor?, Did you get the mail?,0.2
+4,"India and South Asia (India, Pakistan, Sri Lanka)",Finally I didn't have to feel guilty for using my computer on weekends.," Finally, I don't have to feel guilty for using my computer weekends.",0.23
+5,"India and South Asia (India, Pakistan, Sri Lanka)",I'd still like to have a word with her., I still like to have a word with her.,0.11
+6,"India and South Asia (India, Pakistan, Sri Lanka)",This view is wrong though., This view is round.,0.4
+7,"India and South Asia (India, Pakistan, Sri Lanka)",Fedric was unable to find his lucky marble., Fettic was unable to find his lucky marble.,0.12
+8,"India and South Asia (India, Pakistan, Sri Lanka)",Whistle-blower Edward Snowden still lives in exile in Russia., Vessel Blower Advert Snowden still is in exile in Russia.,0.44
+9,"India and South Asia (India, Pakistan, Sri Lanka)",I work at the hospital as a paediatrician., I work at the hospital as a pediatrician.,0.12
+10,"India and South Asia (India, Pakistan, Sri Lanka)",The squirrel ran up the pine tree in a spiral., The squirrel ran up the pine tree in a spiral.,0.0

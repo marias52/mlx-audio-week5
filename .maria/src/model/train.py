@@ -139,7 +139,7 @@ def train():
 
 # --- Entry Point ---
 if __name__ == "__main__":
-    run_type = "train"  # or "sweep"
+    run_type = "sweep"  # or "sweep"
     print("RUNNING TYPE:", run_type)
 
     if run_type == "train":
