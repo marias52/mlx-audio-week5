@@ -19,7 +19,13 @@ wandb/
 # Jupyter notebooks
 .ipynb_checkpoints/
 
-# Dataset files
+# Temporary audio files
+temp_audio/
+*.wav
+*.mp3
+*.flac
+
+# Large dataset files
 urbansound8k_train/
 *.arrow
 urbansound8k*
@@ -29,3 +35,8 @@ UrbanSound8K*
 models/
 checkpoints/
 logs/
+
+# Keep important results but ignore temp files
+# results/*.csv  # Uncomment this if you want to ignore ALL CSV files
+temp_*.csv
+*_temp.csv
